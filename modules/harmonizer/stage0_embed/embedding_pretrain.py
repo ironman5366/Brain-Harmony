@@ -139,20 +139,31 @@ def train(config):
 
     def eval_step(_batch, count):
         with torch.no_grad():
+            # print(f"Batch is", _batch, "batch len", len(_batch))
             _batch_fmri = _batch[0]
-            _batch_T1 = _batch[1]
+            # _batch_T1 = _batch[1]
             _batch_attn_patch_size = _batch[2]
             _batch_attn_attn_mask = _batch[3]
-            _batch_name = _batch[4]
+            # _batch_name = _batch[4]
+            print(
+                "batch fmri shape is ",
+                _batch_fmri.shape,
+                "attn patch size ",
+                _batch_attn_patch_size[0].item(),
+                "mask",
+                _batch_attn_attn_mask.shape,
+            )
 
             fmri = fmri_encoder(
                 _batch_fmri,
                 _batch_attn_patch_size[0].item(),
                 attention_mask=_batch_attn_attn_mask,
             )
-            t1 = t1_encoder(_batch_T1)
+            print("fmri out shape is ", fmri.shape)
+            # t1 = t1_encoder(_batch_T1)
 
-            x = torch.cat([fmri, t1], dim=1).detach().cpu().numpy()
+            # x = torch.cat([fmri, t1], dim=1).detach().cpu().numpy()
+            x = fmri
 
             for j in range(len(x)):
                 save_x = x[j]

@@ -108,6 +108,7 @@ def get_config():
         state="pretrain",
         split="train",
         statistic_dir=Path("statistics-cache"),
+        target_num_patches=18,
     )
 
     # config.dataset_tr_07 = d(

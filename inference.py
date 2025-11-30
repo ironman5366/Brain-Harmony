@@ -60,15 +60,17 @@ def main():
     print(msg)
 
     ds = get_dataset(**config.dataset_tr_07)
-    row, batch_attention_patch_size = ds[0]
+    row, _, batch_attention_patch_size, attn_mask = ds[0]
+    row = row.unsqueeze(0)
 
     row = row.to(device)
+    attn_mask = attn_mask.to(device)
 
     print(
-        f"Row shape {row.shape}, batch attention patch size {batch_attention_patch_size}"
+        f"Row shape {row.shape}, batch attention patch size {batch_attention_patch_size}, attn mask shape, {attn_mask.shape}"
     )
 
-    out = fmri_encoder(row, batch_attention_patch_size)
+    out = fmri_encoder(row, batch_attention_patch_size, attention_mask=attn_mask)
     print("out shape", out.shape)
 
 

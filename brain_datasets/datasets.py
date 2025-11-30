@@ -275,9 +275,7 @@ class fmri_BaseDataset(Dataset):
 
     def pad(self, ts_array, original_time_length):
         # NOTE (will): patched this to use seq_length rather than 400
-        padded = torch.zeros(
-            (self.seq_length, self.target_pad_length), dtype=ts_array.dtype
-        )
+        padded = torch.zeros((400, self.target_pad_length), dtype=ts_array.dtype)
         assert original_time_length <= self.target_pad_length
         padded[:, :original_time_length] = ts_array[:, :original_time_length]
 
@@ -287,10 +285,12 @@ class fmri_BaseDataset(Dataset):
         if self.target_num_patches is None:
             arange = torch.arange(self.num_patches)
             attn_mask_ = (arange[None, :] < self.num_patches).int()
+            # NOTE (will): Patched to seq_legnth
             mask2d = attn_mask_.repeat(400, 1)
             return mask2d.view(-1)
         arange = torch.arange(self.target_num_patches)
         attn_mask_ = (arange[None, :] < self.num_patches).int()
+        # NOTE: (will): Patched to use seq_length
         mask2d = attn_mask_.repeat(400, 1)
         return mask2d.view(-1)
 
@@ -332,7 +332,7 @@ class MedarcDataset(fmri_BaseDataset):
         downsample: bool = False,
         sampling_rate: int = 1,
         seq_length: int = 500,
-        rois: int = 450,
+        rois: int = 400,
         preprocess=None,
         statistic_dir: str | Path = "",
         # Seems to determine which cached statistics file it uses when in downstream tasks - should be irrelevant for us
@@ -359,7 +359,8 @@ class MedarcDataset(fmri_BaseDataset):
         # TODO (will): Use ds loader, and split can use the HF syntax
         self.ds = load_from_disk(
             Path("/kreka/research/willy/side/fmri-eval")
-            / "hcpya-rest1lr.schaefer400_tians3.arrow",
+            # / "hcpya-rest1lr.schaefer400_tians3.arrow",
+            / "hcpya-rest1lr.schaefer400.arrow"
         )
         match split:
             case "test" | "train" | "val":
@@ -382,6 +383,7 @@ class MedarcDataset(fmri_BaseDataset):
             self.target_pad_length = target_num_patches * self.patch_size
         else:
             self.target_pad_length = self.num_patches * self.patch_size
+
         self.target_num_patches = target_num_patches
 
         if norm:
@@ -401,11 +403,17 @@ class MedarcDataset(fmri_BaseDataset):
         std = np.array(row["std"])
         mean = np.array(row["mean"])
 
+        # NOTE (will): Should we do this trimming?
+        # bold = bold[: self.seq_length, :]
+        # std = std[: self.seq_length, :]
+        # mean = mean[: self.seq_length, :]
+
         series = (std * bold) + mean
-        # print(
-        #     f"Bold shape {bold.shape}, std {std.shape}, mean {mean.shape}, returning series {series.shape}"
-        # )
-        return series
+        print(
+            f"Bold shape {bold.shape}, std {std.shape}, mean {mean.shape}, returning series {series.shape} (will transpose to {series.T.shape})"
+        )
+        # Flip from [seq, roi] to [roi, seq]
+        return series.T
 
     def load_fmri(self, idx):
         """
@@ -422,11 +430,14 @@ class MedarcDataset(fmri_BaseDataset):
             )
         else:
             ts_array = torch.from_numpy(ts_array)
+
         original_time_length = ts_array.shape[1]
+        # NOTE (will): Skipping padding here since we're always trimming and I think I messed up the hparams for padding
         padded = self.pad(ts_array, original_time_length)
         ts = torch.unsqueeze(padded, 0).to(torch.float32)
 
-        return ts, original_time_length
+        attn_mask = self.signal_attn_mask()
+        return ts, original_time_length, self.patch_size, attn_mask
 
     def __getitem__(self, idx):
         return self.load_fmri(idx)
@@ -552,6 +563,7 @@ class UKBDataset(fmri_BaseDataset):
             )
         else:
             ts_array = ts_cortical.astype(np.float32)
+        # TODO: it's transposed!
         assert ts_array.shape == (self.n_rois, self.seq_length)
 
         return ts_array
