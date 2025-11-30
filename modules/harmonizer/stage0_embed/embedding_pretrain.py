@@ -81,6 +81,8 @@ def train(config):
     fmri_encoder_pos_embed = get_pos_embed(device, **config.pos_embed)
     fmri_encoder = get_encoder(fmri_encoder_pos_embed, None, **config.encoder)
 
+    print("fmri encoder", fmri_encoder)
+
     ckpt_pth = torch.load(
         config.fmri_pretrain_weights, map_location="cpu", weights_only=True
     )
@@ -107,6 +109,8 @@ def train(config):
     t1_encoder = t1_encoder_model.__dict__["mae_vit_base_patch16"](
         img_size=(160, 192, 160)
     )
+    print("t1 encoder", t1_encoder)
+
     state_dict = torch.load(
         config.t1_pretrain_weights, map_location="cpu", weights_only=False
     )["model"]

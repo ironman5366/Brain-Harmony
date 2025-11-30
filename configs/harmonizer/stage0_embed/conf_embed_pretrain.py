@@ -1,5 +1,6 @@
 import copy
 from dataclasses import dataclass
+from pathlib import Path
 
 import ml_collections
 
@@ -85,6 +86,9 @@ def get_config():
         patch_size=config.patch_size,
         gradient_checkpointing=False,
     )
+    print(
+        "I'm setting encoder to patch size", config.patch_size, "vals", config.encoder
+    )
 
     config.ema = (0.996, 1)
 
@@ -100,29 +104,36 @@ def get_config():
     # dataset done
     config.state = "pretrain"
     config.dataset_tr_07 = d(
-        name="UKB_fusion",
+        name="medarc",
         state="pretrain",
-        split="all",
-        n_cortical_rois=400,
-        n_subcortical_rois=50,
-        seq_length=490,
-        statistic_dir="/path/to/statistic_dir/",
-        fmri_data_dir="/path/to/fmri data/",
-        T1_data_dir="/path/to/T1 data/",
-        split_ids_file="/path/to/split_ids.pkl",
-        use_subcortical=False,
-        preprocess="",
-        norm="all_robust_scaling",
-        downsample=False,
-        sampling_rate=1,
-        label_name="",
-        labels_file="",
-        label_norm_stat_file="",
-        standard_time=config.patch_size * 0.735,
-        target_num_patches=num_patches,
-        return_length=True,
-        if_fusion=True,
+        split="train",
+        statistic_dir=Path("statistics-cache"),
     )
+
+    # config.dataset_tr_07 = d(
+    #     name="UKB_fusion",
+    #     state="pretrain",
+    #     split="all",
+    #     n_cortical_rois=400,
+    #     n_subcortical_rois=50,
+    #     seq_length=490,
+    #     statistic_dir="/path/to/statistic_dir/",
+    #     fmri_data_dir="/path/to/fmri data/",
+    #     T1_data_dir="/path/to/T1 data/",
+    #     split_ids_file="/path/to/split_ids.pkl",
+    #     use_subcortical=False,
+    #     preprocess="",
+    #     norm="all_robust_scaling",
+    #     downsample=False,
+    #     sampling_rate=1,
+    #     label_name="",
+    #     labels_file="",
+    #     label_norm_stat_file="",
+    #     standard_time=config.patch_size * 0.735,
+    #     target_num_patches=num_patches,
+    #     return_length=True,
+    #     if_fusion=True,
+    # )
 
     config.dataset_tr_14 = copy.deepcopy(config.dataset_tr_07)
     config.dataset_tr_14.downsample = True

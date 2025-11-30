@@ -15,7 +15,7 @@ import torch
 from absl import logging
 from torch.utils.data import Dataset
 from tqdm import tqdm
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 
 
 def crop_center(data, out_sp):
@@ -74,7 +74,12 @@ class fmri_BaseDataset(Dataset):
         if hasattr(self, "normparam_name_postfix") and self.normparam_name_postfix:
             postfix = postfix + "_" + self.normparam_name_postfix
         if self.use_train_statistic or self.state == "pretrain":
-            size = 450 if self.use_subcortical else 400
+            # NOTE (will): patched this in so I can just tell it how many rois we have without messing with the use_subcortical thing since our data seems combined
+            if hasattr(self, "rois"):
+                size = self.rois
+            else:
+                size = 450 if self.use_subcortical else 400
+
             filename = (
                 f"{self.dataset_name}_NormParams_Pretrain_{prefix}{size}{postfix}.npz"
             )
@@ -269,7 +274,10 @@ class fmri_BaseDataset(Dataset):
         return ts_array
 
     def pad(self, ts_array, original_time_length):
-        padded = torch.zeros((400, self.target_pad_length), dtype=ts_array.dtype)
+        # NOTE (will): patched this to use seq_length rather than 400
+        padded = torch.zeros(
+            (self.seq_length, self.target_pad_length), dtype=ts_array.dtype
+        )
         assert original_time_length <= self.target_pad_length
         padded[:, :original_time_length] = ts_array[:, :original_time_length]
 
@@ -315,11 +323,73 @@ class T1_BaseDataset(Dataset):
 
 class MedarcDataset(fmri_BaseDataset):
     def __init__(
-        self, state="pretrain", split="train", repo: str = "clane9/fmri-fm-eval"
+        self,
+        state="pretrain",
+        split="train",
+        repo: str = "clane9/fmri-fm-eval",
+        # TODO (will): Look into what's happening with this norm in the superclass
+        norm: str = "all_robust_scaling",
+        downsample: bool = False,
+        sampling_rate: int = 1,
+        seq_length: int = 500,
+        rois: int = 450,
+        preprocess=None,
+        statistic_dir: str | Path = "",
+        # Seems to determine which cached statistics file it uses when in downstream tasks - should be irrelevant for us
+        use_train_statistic: bool = False,
+        target_num_patches: int | None = None,
+        # TODO (will): Is this applicable?
+        standard_time=48 * 0.735,
     ):
         self.split = split
         self.state = state
-        self.ds = load_dataset(repo)[split]
+        self.downsample = downsample
+        self.preprocess = preprocess
+        self.norm = norm
+        self.statistic_dir = statistic_dir
+        self.use_train_statistic = use_train_statistic
+        self.rois = rois
+        self.dataset_name = "medarc"
+        self.standard_time = standard_time
+        self.seq_length = seq_length
+        self.sampling_rate = sampling_rate
+
+        self.num_frames = int(self.seq_length // self.sampling_rate)
+
+        # TODO (will): Use ds loader, and split can use the HF syntax
+        self.ds = load_from_disk(
+            Path("/kreka/research/willy/side/fmri-eval")
+            / "hcpya-rest1lr.schaefer400_tians3.arrow",
+        )
+        match split:
+            case "test" | "train" | "val":
+                self.ds = self.ds[split]
+            case _:
+                raise ValueError(f"Invalid split {split}")
+
+        # self.ds = load_dataset(repo)[split]
+
+        if downsample:
+            self.target_tr = 0.735 * sampling_rate
+        else:
+            self.target_tr = 0.735
+
+        self.patch_size = round(self.standard_time / self.target_tr)
+        self.num_patches = math.ceil(self.seq_length // sampling_rate / self.patch_size)
+
+        if target_num_patches is not None:
+            assert target_num_patches >= self.num_patches
+            self.target_pad_length = target_num_patches * self.patch_size
+        else:
+            self.target_pad_length = self.num_patches * self.patch_size
+        self.target_num_patches = target_num_patches
+
+        if norm:
+            # NOTE (will): This looks fine at first glance since this is computing and caching, but should double check, esp when dataset swapped out for full one
+            self.load_statistical_param_file(str(statistic_dir), norm_type=norm)
+            self.normalization_params = self._load_or_compute_normalization_params(
+                norm_type=norm
+            )
 
     def __len__(self):
         return len(self.ds)
@@ -327,14 +397,14 @@ class MedarcDataset(fmri_BaseDataset):
     def load_signal(self, idx):
         row = self.ds[idx]
         # time-series = stdev * bold + mean
-        bold = row["bold"]
-        std = row["std"]
-        mean = row["mean"]
+        bold = np.array(row["bold"])
+        std = np.array(row["std"])
+        mean = np.array(row["mean"])
 
         series = (std * bold) + mean
-        print(
-            f"Bold shape {bold.shape}, std {std.shape}, mean {mean.shape}, returning series {series.shape}"
-        )
+        # print(
+        #     f"Bold shape {bold.shape}, std {std.shape}, mean {mean.shape}, returning series {series.shape}"
+        # )
         return series
 
     def load_fmri(self, idx):
@@ -909,10 +979,15 @@ class GenerateEmbedDataset_downstream(Dataset):
 
 
 def get_dataset(name, **kwargs):
+    # NOTE (will): In this fork I don't have access to these other datasets, if we're trying to load them it's erroneous and I forgot to change code elsehwere
+    assert name == "medarc", "Trying to load wrong dataset"
+
     if name == "UKB_fusion":
         return UKB_FusionDataset(**kwargs)
     elif name == "fMRI":
         return UKBDataset(**kwargs)
+    elif name == "medarc":
+        return MedarcDataset(**kwargs)
     else:
         raise NotImplementedError(name)
 
