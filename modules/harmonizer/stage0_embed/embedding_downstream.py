@@ -11,7 +11,7 @@ from absl import app, flags, logging
 from ml_collections import config_flags
 from torch.utils.data import DataLoader
 
-from datasets.datasets import get_downstream_fusion_dataset
+from brain_datasets.datasets import get_downstream_fusion_dataset
 from modules.harmonizer.util import t1_encoder as t1_encoder_model
 from modules.harmonizer.util import utils
 
@@ -50,7 +50,7 @@ def train(config):
     config.mixed_precision = accelerator.mixed_precision
     config = ml_collections.FrozenConfigDict(config)
 
-    mini_batch_size = config.train.batch_size  
+    mini_batch_size = config.train.batch_size
     total_batch_size = config.train.batch_size * accelerator.num_processes
 
     if accelerator.is_main_process:

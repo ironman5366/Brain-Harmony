@@ -1,4 +1,3 @@
-
 import argparse
 import csv
 import datetime
@@ -20,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 import modules.harmonizer.stage2_finetune.models as models_enc_one_tok_reg
 import modules.harmonizer.util.lr_decay as lrd
 import modules.harmonizer.util.misc as misc
-from datasets.datasets import GenerateEmbedDataset_downstream
+from brain_datasets.datasets import GenerateEmbedDataset_downstream
 from modules.harmonizer.stage2_finetune.engine_finetune import evaluate, train_one_epoch
 from modules.harmonizer.util.misc import NativeScalerWithGradNormCount as NativeScaler
 
@@ -385,10 +384,8 @@ def main(args):
                 print(f"Removing key {k} from pretrained checkpoint")
                 del checkpoint_model[k]
 
-
         msg = model.load_state_dict(checkpoint_model, strict=False)
         print(msg)
-
 
         if args.global_pool:
             assert set(msg.missing_keys) == {
@@ -427,7 +424,6 @@ def main(args):
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
         model_without_ddp = model.module
-
 
     param_groups = lrd.param_groups_lrd(
         model_without_ddp,

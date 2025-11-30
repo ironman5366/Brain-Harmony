@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import modules.harmonizer.stage1_pretrain.models as models_one_tok_reg
 import modules.harmonizer.util.misc as misc
-from datasets.datasets import GenerateEmbedDataset
+from brain_datasets.datasets import GenerateEmbedDataset
 from modules.harmonizer.stage1_pretrain.engine_pretrain import train_one_epoch
 from modules.harmonizer.util.misc import NativeScalerWithGradNormCount as NativeScaler
 
