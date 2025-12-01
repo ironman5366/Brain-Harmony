@@ -1,6 +1,8 @@
 import torch
 from configs.harmonizer.stage0_embed.conf_embed_pretrain import get_config
 from brain_datasets.datasets import get_dataset
+import torch.nn as nn
+from functools import partial
 
 
 def get_pos_embed(device, name, **kwargs):
@@ -13,6 +15,22 @@ def get_encoder(pos_embed, cls_token, name, **kwargs):
     import libs.model as model
 
     return getattr(model, name)(pos_embed=pos_embed, cls_token=cls_token, **kwargs)
+
+
+def get_decoder(patch_size, **kwargs):
+    from libs.flex_transformer import VisionTransformerDecoder
+
+    # TODO (will): if this bad, try just the VisionTransformerPredictor class. Also figure out the diff! Something about predictor projection layer?
+    return VisionTransformerDecoder(
+        patch_size=patch_size,
+        # embed_dim=768,
+        # depth=12,
+        # num_heads=12,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs,
+    )
 
 
 device = "cuda"
@@ -36,10 +54,18 @@ def main():
         )
         print(fmri_encoder)
 
+        print("Loading fmri decoder")
+        fmri_decoder = get_decoder(
+            pos_embed=fmri_encoder_pos_embed, **config.decoder
+        ).to(device)
+        print(fmri_decoder)
+
         print("Loading fmri checkpoint")
         ckpt_pth = torch.load(
             config.fmri_pretrain_weights, map_location=device, weights_only=True
         )
+
+        print("har")
 
         prefix = "encoder_ema."
         ema_state_dict = {
@@ -77,6 +103,9 @@ def main():
 
         out = fmri_encoder(row, batch_attention_patch_size, attention_mask=attn_mask)
         print("out shape", out.shape)
+
+        # TODO: decode
+        print("har")
 
 
 if __name__ == "__main__":
