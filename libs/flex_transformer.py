@@ -1,4 +1,3 @@
-
 import logging
 import math
 from typing import Optional, Tuple, Union
@@ -27,9 +26,7 @@ def drop_path(x, drop_prob: float = 0.0, training: bool = False):
     if drop_prob == 0.0 or not training:
         return x
     keep_prob = 1 - drop_prob
-    shape = (x.shape[0],) + (1,) * (
-        x.ndim - 1
-    )
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)
     random_tensor = keep_prob + torch.rand(shape, dtype=x.dtype, device=x.device)
     random_tensor.floor_()
     output = x.div(keep_prob) * random_tensor
@@ -37,7 +34,6 @@ def drop_path(x, drop_prob: float = 0.0, training: bool = False):
 
 
 class DropPath(nn.Module):
-
     def __init__(self, drop_prob=None):
         super(DropPath, self).__init__()
         self.drop_prob = drop_prob
@@ -136,7 +132,6 @@ class Attention(nn.Module):
 
 
 class FlashAttention2(Attention):
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -162,9 +157,7 @@ class FlashAttention2(Attention):
             qkv[:, :, 2],
         )
 
-
         dropout_rate = self.dropout if self.training else 0.0
-
 
         input_dtype = query_states.dtype
         if input_dtype == torch.float32:
@@ -173,7 +166,7 @@ class FlashAttention2(Attention):
             elif hasattr(self.config, "_pre_quantization_dtype"):
                 target_dtype = self.config._pre_quantization_dtype
             else:
-                target_dtype = self.q_proj.weight.dtype
+                target_dtype = self.proj.weight.dtype
 
             logger.warning(
                 f"The input hidden states seems to be silently casted in float32, this might be related to"
@@ -347,9 +340,7 @@ class VisionTransformerPredictor(nn.Module):
 
         self.mask_token = nn.Parameter(torch.zeros(1, 1, predictor_embed_dim))
 
-        dpr = [
-            x.item() for x in torch.linspace(0, drop_path_rate, depth)
-        ]
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
 
         self.cls_token = cls_token
         self.predictor_pos_embed = pos_embed
@@ -511,9 +502,7 @@ class FlexVisionTransformer(nn.Module):
         self.patch_embed = FlexiPatchEmbed(patch_size, in_chans, embed_dim)
         self.cls_token = cls_token
         self.pos_embed = pos_embed
-        dpr = [
-            x.item() for x in torch.linspace(0, drop_path_rate, depth)
-        ]
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
         self.blocks = nn.ModuleList(
             [
                 Block(
@@ -654,9 +643,7 @@ class Flex_VisionTransformerForClassification(FlexVisionTransformer):
 
         self.global_pool = global_pool
 
-        self.fc_norm = kwargs.get("norm_layer", nn.LayerNorm)(
-            self.embed_dim
-        )
+        self.fc_norm = kwargs.get("norm_layer", nn.LayerNorm)(self.embed_dim)
         self.head = (
             nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         )
@@ -682,8 +669,8 @@ class Flex_VisionTransformerForClassification(FlexVisionTransformer):
             if self.cls_token is not None:
                 features = features[:, 1:].mean(dim=1)
             else:
-                mask = attention_masks.float().unsqueeze(-1) 
-                masked_features = features * mask 
+                mask = attention_masks.float().unsqueeze(-1)
+                masked_features = features * mask
                 valid_counts = mask.sum(dim=1)
                 valid_counts = valid_counts.clamp(min=1)
                 features = masked_features.sum(dim=1) / valid_counts
