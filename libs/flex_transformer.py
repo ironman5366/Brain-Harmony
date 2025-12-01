@@ -550,14 +550,18 @@ class FlexVisionTransformer(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def forward(
-        self, x, patch_size, masks=None, attention_mask=None, return_attention=False
+        self,
+        x,
+        patch_size,
+        masks=None,
+        attention_mask=None,
+        return_attention=False,
     ):
         if masks is not None:
             if not isinstance(masks, list):
                 masks = [masks]
 
         x = self.patch_embed(x, patch_size)
-        B, N, D = x.shape
 
         pos_embed = self.pos_embed()[0]
         if self.cls_token is not None:
@@ -596,6 +600,7 @@ class FlexVisionTransformer(nn.Module):
 
         if return_attention:
             return x, attn_set
+
         return x
 
     def interpolate_pos_encoding(self, x, pos_embed):

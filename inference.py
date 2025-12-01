@@ -122,19 +122,21 @@ def main():
             f"Row shape {row.shape}, batch attention patch size {batch_attention_patch_size}, attn mask shape, {attn_mask.shape}, attn mask dtype, {attn_mask.dtype}"
         )
 
-        out = fmri_encoder(row, batch_attention_patch_size, attention_mask=attn_mask)
+        out = fmri_encoder(
+            row,
+            batch_attention_patch_size,
+            attention_mask=attn_mask,
+        )
         print("out shape", out.shape)
 
-        # TODO: decode
-        B = out.shape[0]
-        N = out.shape[1]
-        all_indices = torch.arange(N).unsqueeze(0).expand(B, -1).to("cuda")  # [B, N]
-
-        masks_x = [all_indices]  # all patches as context
-        masks = [all_indices]  # predict all positions
-        print(f"masks_x shape {masks_x[0].shape}, masks shape {masks[0].shape}")
-        decoded = fmri_decoder(out, masks=masks, masks_x=masks_x)
-        print("decoded shape", decoded.shape)
+        # B = out.shape[0]
+        # N = out.shape[1]
+        # all_indices = torch.arange(N).unsqueeze(0).expand(B, -1).to("cuda")  # [B, N]
+        # masks_x = [all_indices]  # all patches as context
+        # masks = [all_indices]  # predict all positions
+        # print(f"masks_x shape {masks_x[0].shape}, masks shape {masks[0].shape}")
+        # decoded = fmri_decoder(out, masks=masks, masks_x=masks_x)
+        # print("decoded shape", decoded.shape)
 
 
 if __name__ == "__main__":
