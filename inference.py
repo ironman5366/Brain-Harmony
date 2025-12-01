@@ -65,27 +65,48 @@ def main():
             config.fmri_pretrain_weights, map_location=device, weights_only=True
         )
 
-        print("har")
-
         prefix = "encoder_ema."
         ema_state_dict = {
             k[len(prefix) :]: v for k, v in ckpt_pth.items() if k.startswith(prefix)
         }
-        state_dict = ema_state_dict.copy()
-        model_state_dict = fmri_encoder.state_dict()
+        encoder_state_dict = ema_state_dict.copy()
+        encoder_model_state_dict = fmri_encoder.state_dict()
 
-        for key in list(state_dict.keys()):
+        # NOTE (will): This (and the below with decoder) deeply scares me but it's copied from the original!
+        for key in list(encoder_state_dict.keys()):
             if (
-                key in model_state_dict
-                and state_dict[key].size() != model_state_dict[key].size()
+                key in encoder_model_state_dict
+                and encoder_state_dict[key].size()
+                != encoder_model_state_dict[key].size()
             ):
                 print(
-                    f"skip param {key} due to size mismatch{state_dict[key].size()} vs {model_state_dict[key].size()}"
+                    f"[encoder] skip param {key} due to size mismatch{encoder_state_dict[key].size()} vs {encoder_model_state_dict[key].size()}"
                 )
-                del state_dict[key]
+                del encoder_state_dict[key]
 
-        msg = fmri_encoder.load_state_dict(state_dict, strict=False)
+        msg = fmri_encoder.load_state_dict(encoder_state_dict, strict=False)
         print(msg)
+
+        decoder_model_state_dict = fmri_decoder.state_dict()
+        decoder_prefix = "decoder."
+        decoder_state_dict = {}
+        for k, v in ckpt_pth.items():
+            if k.startswith(decoder_prefix):
+                decoder_state_dict[k.split(decoder_prefix)[1]] = v
+
+        for key in list(decoder_state_dict.keys()):
+            if (
+                key in decoder_model_state_dict
+                and decoder_model_state_dict[key].size()
+                != decoder_state_dict[key].size()
+            ):
+                print(
+                    f"[decoder] skip param {key} due to size mismatch{decoder_state_dict[key].size()} vs {decoder_model_state_dict[key].size()}"
+                )
+                del decoder_state_dict[key]
+
+        decoder_msg = fmri_decoder.load_state_dict(decoder_state_dict, strict=False)
+        print(decoder_msg)
 
         ds = get_dataset(**config.dataset_tr_07)
 
@@ -105,7 +126,15 @@ def main():
         print("out shape", out.shape)
 
         # TODO: decode
-        print("har")
+        B = out.shape[0]
+        N = out.shape[1]
+        all_indices = torch.arange(N).unsqueeze(0).expand(B, -1).to("cuda")  # [B, N]
+
+        masks_x = [all_indices]  # all patches as context
+        masks = [all_indices]  # predict all positions
+        print(f"masks_x shape {masks_x[0].shape}, masks shape {masks[0].shape}")
+        decoded = fmri_decoder(out, masks=masks, masks_x=masks_x)
+        print("decoded shape", decoded.shape)
 
 
 if __name__ == "__main__":
