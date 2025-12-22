@@ -274,7 +274,6 @@ class fmri_BaseDataset(Dataset):
         return ts_array
 
     def pad(self, ts_array, original_time_length):
-        # NOTE (will): patched this to use seq_length rather than 400
         padded = torch.zeros((400, self.target_pad_length), dtype=ts_array.dtype)
         assert original_time_length <= self.target_pad_length
         padded[:, :original_time_length] = ts_array[:, :original_time_length]
@@ -285,12 +284,10 @@ class fmri_BaseDataset(Dataset):
         if self.target_num_patches is None:
             arange = torch.arange(self.num_patches)
             attn_mask_ = (arange[None, :] < self.num_patches).int()
-            # NOTE (will): Patched to seq_legnth
             mask2d = attn_mask_.repeat(400, 1)
             return mask2d.view(-1)
         arange = torch.arange(self.target_num_patches)
         attn_mask_ = (arange[None, :] < self.num_patches).int()
-        # NOTE: (will): Patched to use seq_length
         mask2d = attn_mask_.repeat(400, 1)
         return mask2d.view(-1)
 
@@ -378,6 +375,7 @@ class MedarcDataset(fmri_BaseDataset):
         self.patch_size = round(self.standard_time / self.target_tr)
         self.num_patches = math.ceil(self.seq_length // sampling_rate / self.patch_size)
 
+        print("har")
         if target_num_patches is not None:
             assert target_num_patches >= self.num_patches
             self.target_pad_length = target_num_patches * self.patch_size
