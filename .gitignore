@@ -9,3 +9,5 @@ qdel.sh
 checkpoints
 statistics-cache
 .vscode
+output/
+wandb/
