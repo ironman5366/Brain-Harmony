@@ -11,3 +11,5 @@ statistics-cache
 .vscode
 output/
 wandb/
+*.env
+.s3.env

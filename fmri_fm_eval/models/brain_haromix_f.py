@@ -118,11 +118,16 @@ class BrainHarmonixFTransform:
 
         original_time_length = ts_array.shape[1]
         padded = self.pad(ts_array, original_time_length, target_pad_length)
-        ts = torch.unsqueeze(padded, 0).to(DEVICE, dtype=DTYPE)
+        ts = torch.unsqueeze(padded, 0)
 
-        attn_mask = self.signal_attn_mask(num_patches).to(DEVICE)
+        attn_mask = self.signal_attn_mask(num_patches)
 
-        return {"ts": ts, "attention_mask": attn_mask, "patch_size": self.patch_size}
+        return {
+            "ts": ts,
+            "attention_mask": attn_mask,
+            "patch_size": self.patch_size,
+            **sample,
+        }
 
 
 def get_pos_embed(DEVICE, name, **kwargs):
@@ -145,9 +150,10 @@ class BrainHarmonixFWrapper(nn.Module):
         self.encoder = encoder
 
     def forward(self, batch: dict[str, Tensor]) -> Embeddings:
-        ts = batch["ts"]
+        ts = batch["ts"].to(DEVICE, dtype=DTYPE)
         batch_attention_patch_size = batch["patch_size"][0].item()
-        attention_mask = batch["attention_mask"]
+        attention_mask = batch["attention_mask"].to(DEVICE, dtype=DTYPE)
+
         # NOTE (will): it can be set by the framework but we need autocast here or else their
         # patched FA2 flex transformer implementation is going to freak out
         with torch.autocast(dtype=DTYPE, device_type=DEVICE):
