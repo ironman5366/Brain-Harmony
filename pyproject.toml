@@ -3,6 +3,7 @@ name = "brainharmonix"
 version = "0.1.0"
 dependencies = [
     "datasets>=4.4.1",
+    "fmri-fm-eval",
 ]
 
 [tool.setuptools.packages.find]
@@ -12,3 +13,6 @@ exclude = [
     "*.pyc", 
     "__pycache__",
 ]
+
+[tool.uv.sources]
+fmri-fm-eval = { git = "https://github.com/MedARC-AI/fmri-fm-eval.git" }
